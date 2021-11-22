@@ -1,0 +1,10 @@
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\bin\Debug\ExportFromDatabaseToXML.exe.config
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\bin\Debug\ExportFromDatabaseToXML.exe
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\bin\Debug\ExportFromDatabaseToXML.pdb
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\obj\Debug\ExportFromDatabaseToXML.csprojAssemblyReference.cache
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\obj\Debug\ExportToDatabaseFromFile.FormLogging.resources
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\obj\Debug\ExportFromDatabaseToXML.Properties.Resources.resources
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\obj\Debug\ExportFromDatabaseToXML.csproj.GenerateResource.cache
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\obj\Debug\ExportFromDatabaseToXML.csproj.CoreCompileInputs.cache
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\obj\Debug\ExportFromDatabaseToXML.exe
+C:\Users\bnl\Documents\GitHub\ExportFromDatabaseToXML\ExportFromDatabaseToXML\ExportFromDatabaseToXML\obj\Debug\ExportFromDatabaseToXML.pdb

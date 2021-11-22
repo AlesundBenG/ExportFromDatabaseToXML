@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Data.SqlClient; //Для работы с БД.
 using System.Data; //Для работы с классом DataTable.
 
-namespace ExportFromExcelToDatabase.Classes
+namespace ExportFromDatabaseToXML.Classes
 {
     public class ExecutorQuerySQL
     {

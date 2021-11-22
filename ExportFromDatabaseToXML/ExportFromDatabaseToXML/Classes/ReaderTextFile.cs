@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO; //Библиотека для работы с файлами.
 
-namespace ExportFromExcelToDatabase.Classes
+namespace ExportFromDatabaseToXML.Classes
 {
     /// <summary>
     /// Чтение текстовых файлов.
