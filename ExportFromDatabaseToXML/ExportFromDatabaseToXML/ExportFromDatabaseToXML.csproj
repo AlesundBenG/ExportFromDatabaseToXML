@@ -49,6 +49,7 @@
     <Compile Include="Classes\ExecutorQuerySQL.cs" />
     <Compile Include="Classes\GeneratorXML.cs" />
     <Compile Include="Classes\ReaderTextFile.cs" />
+    <Compile Include="Classes\RemoverEmptyTagFromXML.cs" />
     <Compile Include="Forms\FormMain.cs">
       <SubType>Form</SubType>
     </Compile>

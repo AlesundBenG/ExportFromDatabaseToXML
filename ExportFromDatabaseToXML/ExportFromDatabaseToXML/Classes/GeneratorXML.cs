@@ -9,100 +9,111 @@ namespace ExportFromDatabaseToXML.Classes
 {
     public class GeneratorXML
     {
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /*Внутренние классы*/
+
         /// <summary>
-        /// Информация о пометках.
+        /// Часть сгенерированного XML.
         /// </summary>
-        private class Mark
+        private class PartXML
         {
-            public int      startPosition;
-            public int      endPosition;
-            public string   name;
-            public bool     isCloseMark;
+            /// <summary>
+            /// Часть XML со вставленными данными.
+            /// </summary>
+            public string data;
+            /// <summary>
+            /// Значение для связки с вышестоящей частью XML.
+            /// </summary>
+            public string forLink;
         }
 
-        private class PlaceForInsert
-        {
-            public string namePlace;
-            public string place;
-            public string higherLevelPlace;
-        }
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /*Public-методы*/
 
-
-
-        public string generateXML(string patternXML, List<DataTable> date) {
+        /// <summary>
+        /// Генерация XML по шаблону и данным.
+        /// </summary>
+        /// <param name="patternXML">Шаблон XML.</param>
+        /// <param name="data">Данные для вставки.</param>
+        /// <returns>XML</returns>
+        public string generateXML(string patternXML, List<DataTable> data) {
+            //Копия XML.
             string xml = patternXML;
-
-            List<PlaceForInsert> placeForInsert = new List<PlaceForInsert>();
-            Mark mark = getNextMark(xml, 0);
-            Mark closeMark = getCloseMark(ref xml, mark, placeForInsert);
-            addPlaceForInsert(ref xml, placeForInsert, mark, closeMark, null);
-            return "";
-        }
-
-
-
-
-        /// <summary>
-        /// По открывающей метке найти закрывающую метку.
-        /// </summary>
-        /// <param name="text">Текст для поиска.</param>
-        /// <param name="headerMark">Метка, для которой ищется закрывающая метка.</param>
-        /// <returns>Закрывающая метка.</returns>
-        private Mark getCloseMark(ref string text, Mark headerMark, List<PlaceForInsert> placeForInsert) {
-            //Получаем следующий тег, идущий после текущего.
-            Mark nextMark = getNextMark(text, headerMark.endPosition);
-            while (!(nextMark.isCloseMark && nextMark.name == headerMark.name)) {
-                Mark closeNextMark = getCloseMark(ref text, nextMark, placeForInsert);
-                int currentPosition = nextMark.startPosition + 1;
-                addPlaceForInsert(ref text, placeForInsert, nextMark, closeNextMark, headerMark);
-                nextMark = getNextMark(text, currentPosition);
+            //Получение секции 2.
+            int startSection2 = xml.IndexOf("#ResultSection.2#") + "#ResultSection.2#".Length;
+            int endSection2 = xml.IndexOf("#/ResultSection.2#");
+            string patternSection2 = xml.Substring(startSection2, endSection2 - startSection2);
+            //Удаление секции 2.
+            xml = xml.Remove(startSection2, patternSection2.Length + "#/ResultSection.2#".Length);
+            //Получение секции 1.
+            int startSection1 = xml.IndexOf("#ResultSection.1#") + "#ResultSection.1#".Length;
+            int endSection1 = xml.IndexOf("#/ResultSection.1#");
+            string patternSection1 = xml.Substring(startSection1, endSection1 - startSection1);
+            //Удаление секции 1.
+            xml = xml.Remove(startSection1, patternSection1.Length + "#/ResultSection.1#".Length);
+            //Вставка значений в секции 2.
+            List<PartXML> sections2 = new List<PartXML>();
+            for (int row = 0; row < data[1].Rows.Count; row++) {
+                string patternWithData = patternSection2;
+                for (int column = 0; column < data[1].Columns.Count; column++) {
+                    string columnName = data[1].Columns[column].ColumnName;
+                    patternWithData = patternWithData.Replace($"#{columnName}#", data[1].Rows[row][column].ToString());
+                }
+                sections2.Add(new PartXML() {
+                    data = patternWithData,
+                    forLink = data[1].Rows[row][0].ToString()
+                });
             }
-            return nextMark;
-        }
-
-        /// <summary>
-        /// Получить первую пометку, идущую после заданной позиции.
-        /// </summary>
-        /// <param name="text">Текст.</param>
-        /// <param name="startPosition">Начальная позиция для поиска.</param>
-        private Mark getNextMark(string text, int startPosition) {
-            for (int i = startPosition; i < text.Length; i++) {
-                if (text[i] == '#') {
-                    string a = text.Substring(i + 1, 13);
-                    if (text.Substring(i + 1, 13) == "ResultSection" || text.Substring(i + 1, 14) == "/ResultSection") {
-                        bool isCloseMark = (text.Substring(i + 1, 1) == "/");
-                        string mark = text.Substring(i + 1 + Convert.ToInt32(isCloseMark), text.IndexOf('#', i + 1) - i - 1 - Convert.ToInt32(isCloseMark));
-                        return new Mark() {
-                            startPosition = i + Convert.ToInt32(text.Substring(i + 1, 1) == "/"),
-                            endPosition = i + mark.Length + 2 + Convert.ToInt32(text.Substring(i + 1, 1) == "/"),
-                            name = mark,
-                            isCloseMark = (text.Substring(i + 1, 1) == "/")
-                        };
+            //Вставка значений в секции 1.
+            List<PartXML> sections1 = new List<PartXML>();
+            for (int row = 0; row < data[0].Rows.Count; row++) {
+                string patternWithData = patternSection1;
+                for (int column = 0; column < data[0].Columns.Count; column++) {
+                    string columnName = data[0].Columns[column].ColumnName;
+                    patternWithData = patternWithData.Replace($"#{columnName}#", data[0].Rows[row][column].ToString());
+                }
+                //Вставка из секции 2.
+                for (int k = 0; k < sections2.Count; k++) {
+                    if (sections2[k].forLink == data[0].Rows[row][0].ToString()) {
+                        int startInsertSection2 = patternWithData.IndexOf("#ResultSection.2#");
+                        patternWithData = patternWithData.Insert(startInsertSection2, sections2[k].data);
                     }
                 }
+                int startInsertSection1 = xml.IndexOf("#ResultSection.1#");
+                xml = xml.Insert(startInsertSection1, patternWithData);
             }
-            return null;
+            //Удаление меток.
+            xml = xml.Replace("#ResultSection.2#", "");
+            xml = xml.Replace("#ResultSection.1#", "");
+            //Удаление пустых тегов и пустых строк.
+            RemoverEmptyTagFromXML remover = new RemoverEmptyTagFromXML();
+            xml = remover.removeEmptyTagFromXML(xml);
+            return deleteEmptyLines(xml);
         }
 
         /// <summary>
-        /// Помещение места для вставки в список, с удалением и заменой этого места в основном тексте.
+        /// Удаление пустых строк.
         /// </summary>
-        /// <param name="text">Исходный текст.</param>
-        /// <param name="placeForInsert">Список мест для вставки.</param>
-        /// <param name="headerMark">Открывающая метка.</param>
-        /// <param name="closeMark">Закрывающаяся метка.</param>
-        /// <param name="higherLevelMark">Вышестоящее место (место, которое включает данное место).</param>
-        private void addPlaceForInsert(ref string text, List<PlaceForInsert> placeForInsert, Mark headerMark, Mark closeMark, Mark higherLevelMark) {
-            //Копирование места для вставки.
-            PlaceForInsert place = new PlaceForInsert() {
-                namePlace           = headerMark.name,
-                place               = text.Substring(headerMark.endPosition, closeMark.startPosition - headerMark.endPosition - 1),
-                higherLevelPlace    = (higherLevelMark == null) ? null : higherLevelMark.name
-            };
-            placeForInsert.Add(place);
-            //Замена места ключевым словом.
-            text = text.Remove(headerMark.startPosition, closeMark.endPosition - headerMark.startPosition);
-            text = text.Insert(headerMark.startPosition, $"#{headerMark.name}#");
+        /// <param name="str">Список строк в одной строке с разделителями \r\n</param>
+        /// <returns></returns>
+        private string deleteEmptyLines(string str) {
+            var lines = str.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+            string result = "";
+            for (int i = 0; i < lines.Length; i++) {
+                bool isEmpty = true;
+                string temp = lines[i].ToString();
+                for (int j = 0; j < temp.Length; j++) {
+                    if (temp[j] != '\t' && temp[j] != ' ') {
+                        isEmpty = false;
+                        break;
+                    }
+                }
+                if (!isEmpty) {
+                    result = result + temp + "\r\n";
+                }
+            }
+            return result;
         }
     }
 }
+
