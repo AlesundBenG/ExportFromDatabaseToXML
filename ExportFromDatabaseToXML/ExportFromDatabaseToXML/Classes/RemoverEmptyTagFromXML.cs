@@ -139,9 +139,7 @@ namespace ExportFromDatabaseToXML.Classes
         /// <param name="closeTag">Закрывающий тег.</param>
         /// <returns></returns>
         private string removeTag(string text, Tag headerTag, Tag closeTag) {
-            string textBefore = text.Substring(0, headerTag.startPosition);
-            string textAfter = text.Substring(closeTag.endPosition, text.Length - closeTag.endPosition);
-            return textBefore + textAfter;
+            return text.Remove(headerTag.startPosition, closeTag.endPosition - headerTag.startPosition);
         }
 
         /// <summary>

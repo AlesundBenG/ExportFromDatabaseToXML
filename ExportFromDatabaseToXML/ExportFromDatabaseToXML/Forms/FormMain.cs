@@ -46,7 +46,7 @@ namespace ExportFromDatabaseToXML
             _pathExe = Environment.CurrentDirectory;
             _pathPattern = _pathExe + "\\Sourse\\PatternXML.xml";
             _pathQuery = _pathExe + "\\Sourse\\Query.sql";
-            ExecutorQuerySQL executorQuerySQL = new ExecutorQuerySQL("");
+            ExecutorQuerySQL executorQuerySQL = new ExecutorQuerySQL();
             ReaderTextFile reader = new ReaderTextFile();
             string query = reader.getText(_pathQuery);
             string patternXML = reader.getText(_pathPattern);
