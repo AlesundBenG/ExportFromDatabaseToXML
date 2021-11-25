@@ -111,6 +111,9 @@ namespace ExportFromDatabaseToXML.Classes
         private Tag getCloseTag(ref string text, Tag headerTag) {
             Tag nextTag = getNextTag(text, headerTag.endPosition);
             while (!(nextTag.isCloseTag && nextTag.name == headerTag.name)) {
+                if (nextTag.isCloseTag) {
+                    throw new Exception($"В теге {headerTag.name} не найден открывающий тег у закрывающего тега </{nextTag.name}>");
+                }
                 Tag closeNextTag = getCloseTag(ref text, nextTag);
                 int currentPosition = closeNextTag.endPosition + 1;
                 if (isEmptyTag(text, nextTag, closeNextTag)) {

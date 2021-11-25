@@ -195,7 +195,11 @@ INSERT INTO #НАЗНАЧЕНИЯ ([Идентификатор], [Правооб
 SELECT DISTINCT
     servServ.OUID                       AS [Идентификатор],
     personalCardHolder.OUID             AS [ПравообладательМСП],
-    organization.A_PFRDCDE              AS [ПравообладательМСП-Район-Код],
+    CASE 
+        WHEN organization.OUID = 173806 
+        THEN '001' 
+        ELSE organization.A_PFRDCDE  
+    END                                 AS [ПравообладательМСП-Район-Код],
     CASE 
         WHEN organization.OUID = 173806 
         THEN 'г. Киров' 
@@ -215,7 +219,7 @@ SELECT DISTINCT
     CONVERT(DATE, period.STARTDATE)     AS [МСП-РаспорядительныйДокумент-Период-УТ2:С],
     ISNULL(CONVERT(DATE, period.A_LASTDATE), CONVERT(DATE, '01-01-9999'))    AS [МСП-РаспорядительныйДокумент-Период-УТ2:По],
     CONVERT(DATE, petition.A_DONEDATE)  AS [МСП-РаспорядительныйДокумент-Реквизиты-Дата],
-    ISNULL(petition.A_DECISION_NUM, '-')    AS [МСП-РаспорядительныйДокумент-Реквизиты-Номер],
+    servServ.A_NUMPB                    AS [МСП-РаспорядительныйДокумент-Реквизиты-Номер],
     ROUND(payAmount.A_AMOUNT, 2)        AS [МСП-РаспорядительныйДокумент-РазмерМСП],
     typeServ.NPA_FROM_PFR               AS [МСП-НПА],
     typeServ.CODE_FROM_PFR              AS [МСП-КодМСП],
@@ -357,15 +361,15 @@ CREATE TABLE #ПРАВОПОДТВЕРЖДАЮЩИЕ_ДОКУМЕНТЫ (
 --Выборка.
 INSERT INTO #ПРАВОПОДТВЕРЖДАЮЩИЕ_ДОКУМЕНТЫ ([Назначение], [Идентификатор], [УТ2:Наименование], [УТ2:Серия], [УТ2:Номер], [УТ2:ДатаВыдачи], [УТ2:КемВыдан], [ПериодДействия-УТ2:С], [ПериодДействия-УТ2:По])
 SELECT 
-    servServ.OUID                                                       AS [Назначение],
-    actDocuments.OUID                                                   AS [Идентификатор],
-    typeDoc.A_NAME                                                      AS [УТ2:Наименование],
-    actDocuments.DOCUMENTSERIES                                         AS [УТ2:Серия],
-    ISNULL(actDocuments.DOCUMENTSNUMBER, '-')                           AS [УТ2:Номер],
-    ISNULL(CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE), CONVERT(DATE, '01-01-9999'))                     AS [УТ2:ДатаВыдачи],
-    ISNULL(ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT), '-')   AS [УТ2:КемВыдан],
-    ISNULL(CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE), CONVERT(DATE, '01-01-9999'))                     AS [ПериодДействия-УТ2:С],
-    ISNULL(CONVERT(DATE, actDocuments.COMPLETIONSACTIONDATE), CONVERT(DATE, '01-01-9999'))   AS [ПериодДействия-УТ2:По]
+    servServ.OUID                                                                           AS [Назначение],
+    actDocuments.OUID                                                                       AS [Идентификатор],
+    typeDoc.A_NAME                                                                          AS [УТ2:Наименование],
+    actDocuments.DOCUMENTSERIES                                                             AS [УТ2:Серия],
+    ISNULL(actDocuments.DOCUMENTSNUMBER, '-')                                               AS [УТ2:Номер],
+    ISNULL(CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE), CONVERT(DATE, '01-01-9999'))    AS [УТ2:ДатаВыдачи],
+    ISNULL(ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT), '-')          AS [УТ2:КемВыдан],
+    ISNULL(CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE), CONVERT(DATE, '01-01-9999'))    AS [ПериодДействия-УТ2:С],
+    ISNULL(CONVERT(DATE, actDocuments.COMPLETIONSACTIONDATE), CONVERT(DATE, '01-01-9999'))  AS [ПериодДействия-УТ2:По]
 FROM #НАЗНАЧЕНИЯ 
 ----Назначения МСП.
     INNER JOIN ESRN_SERV_SERV servServ 
@@ -687,7 +691,7 @@ FROM (
         ISNULL(ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT), '-')  AS [УТ2:КемВыдан],
         CONVERT(DATE, actDocuments.COMPLETIONSACTIONDATE)                               AS [УТ2:СрокДействия],
         REPLACE(actDocuments.A_UNIT_CODE, '-', '')                                      AS [УТ2:КодПодразделения],
-        ROW_NUMBER() OVER (PARTITION BY actDocuments.PERSONOUID  ORDER BY actDocuments.ISSUEEXTENSIONSDATE DESC) AS gnum 
+        ROW_NUMBER() OVER (PARTITION BY actDocuments.PERSONOUID  ORDER BY classifyDoc.OUID, actDocuments.ISSUEEXTENSIONSDATE DESC) AS gnum 
     FROM WM_ACTDOCUMENTS actDocuments --Действующие документы. 
     ----Выбранные личные дела.
         INNER JOIN #ПЕРСОНАЛЬНАЯ_ИНФОРМАЦИЯ personalCard
