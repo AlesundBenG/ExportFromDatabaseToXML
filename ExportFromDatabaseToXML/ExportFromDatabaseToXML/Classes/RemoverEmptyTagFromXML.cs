@@ -68,10 +68,14 @@ namespace ExportFromDatabaseToXML.Classes
         /// <param name="startPosition">Начальная позиция для поиска.</param>
         /// <returns>Тег, идущий после заданной позиции, либо NULL.</returns>
         private Tag getNextTag(string text, int startPosition) {
-            int startPositionTag = goWhileNotMeetThoseSymbols(text, startPosition, new char[] { '<' });
-            if (startPositionTag == -1) {
-                return null;
-            }
+            int startPositionTag = startPosition - 1;
+            do {
+                startPositionTag++;
+                startPositionTag = goWhileNotMeetThoseSymbols(text, startPositionTag, new char[] { '<' });
+                if (startPositionTag == -1) {
+                    return null;
+                }
+            } while (text[startPositionTag + 1] == '?');
             bool isCloseTag = text[startPositionTag + 1] == '/';
             int endPositionNameTag = goWhileNotMeetThoseSymbols(text, startPositionTag, new char[] { ' ', '\t', '>' });
             if (endPositionNameTag == -1) {

@@ -47,9 +47,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Classes\ExecutorQuerySQL.cs" />
+    <Compile Include="Classes\GeneratorSQLCommand.cs" />
     <Compile Include="Classes\GeneratorXML.cs" />
     <Compile Include="Classes\ReaderTextFile.cs" />
     <Compile Include="Classes\RemoverEmptyTagFromXML.cs" />
+    <Compile Include="Classes\Token.cs" />
     <Compile Include="Forms\FormMain.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -66,6 +68,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Forms\FormLogging.resx">
       <DependentUpon>FormLogging.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\FormMain.resx">
+      <DependentUpon>FormMain.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

@@ -1,4 +1,4 @@
-﻿namespace ExportToDatabaseFromFile
+﻿namespace ExportFromDatabaseToXML.Classes
 {
     partial class FormLogging
     {
