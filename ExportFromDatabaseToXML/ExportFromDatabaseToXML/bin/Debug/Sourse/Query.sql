@@ -8,9 +8,7 @@ DECLARE @actDoc                 INT         = 1                         --Ста
 DECLARE @deliveryRussianPost    INT         = 1                         --Доставка почтой.
 
 
---//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
---//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
---//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+--------------------------------------------------------------------------------------------------------------------------------
 
 
 --Удаление таблицы.
@@ -112,7 +110,7 @@ FROM ESRN_SERV_SERV servServ --Назначения МСП.
 ----Нужные меры социальной поддержки.
     INNER JOIN CLASSIFY_MSP_FROM_PFR typeServ
         ON typeServ.MSP_LK_NPD_FROM_PPR = servServ.A_SERV	
-            AND typeServ.CODE_FROM_PFR = '01303'
+            AND typeServ.CODE_FROM_PFR = '03500'
 ----Период предоставления МСП.
     INNER JOIN SPR_SERV_PERIOD period 
         ON period.A_SERV = servServ.OUID 
@@ -203,6 +201,63 @@ WHERE servServ.A_STATUS = @actStatus
         OR SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT) - 1) <> 'TypeDoc'
         OR typeServ.COMMENT IS NULL
     )
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+
+--Установка кода получателя для мер на детей.
+UPDATE servServ
+SET servServ.[МСП-ГИД-КодПолучателя] =  typeRelationships.TYPE_RELATIONSHIP
+FROM #НАЗНАЧЕНИЯ servServ
+    INNER JOIN (
+        SELECT 
+            typeRelationships.SERV_OUID,
+            typeRelationships.TYPE_RELATIONSHIP,
+            ROW_NUMBER() OVER (PARTITION BY typeRelationships.SERV_OUID ORDER BY typeRelationships.TYPE_RELATIONSHIP DESC) AS gnum 
+        FROM (    
+            SELECT 
+                servServOriginal.OUID  AS SERV_OUID,
+                CASE 
+                    WHEN adoptionDoc.OUID IS NOT NULL               THEN 15     --Усыновитель.
+                    WHEN guardianship.A_ID IS NOT NULL              THEN 19     --Опекун.
+                    WHEN relationships.A_RELATED_RELATIONSHIP = 1   THEN 11     --Отец
+                    WHEN relationships.A_RELATED_RELATIONSHIP = 2   THEN 4      --Мать
+                    ELSE NULL
+                END AS TYPE_RELATIONSHIP
+            FROM #НАЗНАЧЕНИЯ servServ
+            ----Назначение.
+                INNER JOIN ESRN_SERV_SERV servServOriginal
+                    ON servServOriginal.OUID = servServ.[Идентификатор]
+            ----Родственные связи.
+                LEFT JOIN WM_RELATEDRELATIONSHIPS relationships 
+                    ON relationships.A_ID1 = servServ.[МСП-ГИД-Ребенок]
+                        AND relationships.A_ID2 = servServ.[ПравообладательМСП]
+                        AND relationShips.A_STATUS = @actStatus  
+            ----Сведения об опеке.
+                LEFT JOIN WM_INCAPABLE_CITIZEN guardianship
+                    ON guardianship.A_STATUS = @actStatus                        
+                        AND guardianship.A_PC_TUTOR = servServ.[ПравообладательМСП] --Опекун.
+                        AND guardianship.A_PC_CITIZEN = servServ.[МСП-ГИД-Ребенок]  --Опекуемый.
+                        AND (@currentDate >= CONVERT(DATE, guardianship.A_INCAP_P_START) OR guardianship.A_INCAP_P_START IS NULL)
+                        AND (@currentDate <= CONVERT(DATE, guardianship.A_INCAP_P_END) OR guardianship.A_INCAP_P_END IS NULL)      
+            ----Заявления.
+                LEFT JOIN WM_PETITION petition
+                    ON petition.OUID = servServOriginal.A_REQUEST
+            ----Класс связки Обращения-Документы
+                LEFT JOIN SPR_LINK_APPEAL_DOC petition_document
+                    ON petition_document.FROMID = petition.OUID
+            ----Решение суда об усыновлении (удочерении) ребенка
+                LEFT JOIN WM_ACTDOCUMENTS adoptionDoc
+                    ON adoptionDoc.OUID = petition_document.TOID
+                        AND adoptionDoc.A_STATUS = @actStatus
+                        AND adoptionDoc.DOCUMENTSTYPE IN (2704)  
+            WHERE servServ.[МСП-КодМСП] IN ('03300', '03400', '03500', '03600', '03700', '03800', '03900')                           
+        ) typeRelationships 
+        WHERE typeRelationships.TYPE_RELATIONSHIP IS NOT NULL
+) typeRelationships
+    ON typeRelationships.SERV_OUID = servServ.[Идентификатор]
+        AND typeRelationships.gnum = 1
 
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -923,3 +978,4 @@ SELECT
     CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:С])       AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:С],
     CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:По])      AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:По]
 FROM #ПРАВОПОДТВЕРЖДАЮЩИЕ_ДОКУМЕНТЫ сonfirmationDocument
+*/
