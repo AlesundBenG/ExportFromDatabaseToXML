@@ -112,7 +112,7 @@ FROM ESRN_SERV_SERV servServ --Назначения МСП.
 ----Нужные меры социальной поддержки.
     INNER JOIN CLASSIFY_MSP_FROM_PFR typeServ
         ON typeServ.MSP_LK_NPD_FROM_PPR = servServ.A_SERV	
-            AND typeServ.CODE_FROM_PFR = '02700'
+            AND typeServ.CODE_FROM_PFR = '01303'
 ----Период предоставления МСП.
     INNER JOIN SPR_SERV_PERIOD period 
         ON period.A_SERV = servServ.OUID 
@@ -137,6 +137,12 @@ FROM ESRN_SERV_SERV servServ --Назначения МСП.
         ON mseNotice.OUID = petition_document.TOID
             AND mseNotice.A_STATUS = @actStatus
             AND mseNotice.DOCUMENTSTYPE IN (1799)
+----Документ, приклепленный к заявлению, уточняющий меру. 
+    LEFT JOIN WM_ACTDOCUMENTS necessaryDoc
+        ON necessaryDoc.OUID = petition_document.TOID
+            AND necessaryDoc.A_STATUS = @actStatus
+            AND SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT) - 1) = 'TypeDoc'
+            AND necessaryDoc.DOCUMENTSTYPE = SUBSTRING(typeServ.COMMENT, CHARINDEX(':', typeServ.COMMENT) + 1, LEN(typeServ.COMMENT) - CHARINDEX(':', typeServ.COMMENT))
 ----Состояния здоровья, прикрепленные к справке МСЭ.
     LEFT JOIN LINK_ACTDOC_HEALTH doc_link_health
         ON doc_link_health.A_FROMID = mseNotice.OUID
@@ -144,6 +150,7 @@ FROM ESRN_SERV_SERV servServ --Назначения МСП.
     LEFT JOIN WM_HEALTHPICTURE health 
         ON health.OUID = doc_link_health.A_TOID
             AND health.A_STATUS = @actStatus
+            AND SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT) - 1) = 'GroupInvalid'
             AND health.A_INVALID_GROUP = SUBSTRING(typeServ.COMMENT, CHARINDEX(':', typeServ.COMMENT) + 1, LEN(typeServ.COMMENT) - CHARINDEX(':', typeServ.COMMENT))
 ----Выплатное дело.
     INNER JOIN WM_PAYMENT_BOOK payBook
@@ -185,9 +192,15 @@ FROM ESRN_SERV_SERV servServ --Назначения МСП.
         ON district.OUID = organization_district.A_TOID   
 WHERE servServ.A_STATUS = @actStatus 
 ----Зависимость меры по инвалидности.
-    AND (SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT)-1) = 'GroupInvalid'
+    AND (SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT) - 1) = 'GroupInvalid'
         AND health.OUID IS NOT NULL
-        OR SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT)-1) <> 'GroupInvalid'
+        OR SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT) - 1) <> 'GroupInvalid'
+        OR typeServ.COMMENT IS NULL
+    )
+----Зависимость меры по документу.
+    AND (SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT) - 1) = 'TypeDoc'
+        AND necessaryDoc.OUID IS NOT NULL
+        OR SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT) - 1) <> 'TypeDoc'
         OR typeServ.COMMENT IS NULL
     )
 
@@ -211,15 +224,15 @@ CREATE TABLE #ПРАВОПОДТВЕРЖДАЮЩИЕ_ДОКУМЕНТЫ (
 )
 --Выборка.
 INSERT INTO #ПРАВОПОДТВЕРЖДАЮЩИЕ_ДОКУМЕНТЫ ([Назначение], [Идентификатор], [УТ2:Наименование], [УТ2:Серия], [УТ2:Номер], [УТ2:ДатаВыдачи], [УТ2:КемВыдан], [ПериодДействия-УТ2:С], [ПериодДействия-УТ2:По])
-SELECT 
+SELECT DISTINCT
     servServ.OUID                                                                           AS [Назначение],
     actDocuments.OUID                                                                       AS [Идентификатор],
     typeDoc.A_NAME                                                                          AS [УТ2:Наименование],
     actDocuments.DOCUMENTSERIES                                                             AS [УТ2:Серия],
-    ISNULL(actDocuments.DOCUMENTSNUMBER, '-')                                               AS [УТ2:Номер],
-    ISNULL(CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE), CONVERT(DATE, '01-01-9999'))    AS [УТ2:ДатаВыдачи],
-    ISNULL(ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT), '-')          AS [УТ2:КемВыдан],
-    ISNULL(CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE), CONVERT(DATE, '01-01-9999'))    AS [ПериодДействия-УТ2:С],
+    actDocuments.DOCUMENTSNUMBER                                                            AS [УТ2:Номер],
+    CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE)                                         AS [УТ2:ДатаВыдачи],
+    ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT)                       AS [УТ2:КемВыдан],
+    CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE)                                         AS [ПериодДействия-УТ2:С],
     ISNULL(CONVERT(DATE, actDocuments.COMPLETIONSACTIONDATE), CONVERT(DATE, '01-01-9999'))  AS [ПериодДействия-УТ2:По]
 FROM #НАЗНАЧЕНИЯ 
 ----Назначения МСП.
@@ -539,7 +552,7 @@ FROM (
         actDocuments.DOCUMENTSERIES                                                     AS [УТ2:Серия],
         actDocuments.DOCUMENTSNUMBER                                                    AS [УТ2:Номер],
         CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE)                                 AS [УТ2:ДатаВыдачи],
-        ISNULL(ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT), '-')  AS [УТ2:КемВыдан],
+        ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT)               AS [УТ2:КемВыдан],
         CONVERT(DATE, actDocuments.COMPLETIONSACTIONDATE)                               AS [УТ2:СрокДействия],
         REPLACE(actDocuments.A_UNIT_CODE, '-', '')                                      AS [УТ2:КодПодразделения],
         ROW_NUMBER() OVER (PARTITION BY actDocuments.PERSONOUID  ORDER BY classifyDoc.OUID, actDocuments.ISSUEEXTENSIONSDATE DESC) AS gnum 
@@ -840,10 +853,10 @@ SELECT
     addressLiveChild.[УТ2:Владение]                                     AS [МСП-ГИД-Ребенок-УТ2:АдресФактический-УТ2:Владение],
     addressLiveChild.[УТ2:Корпус]                                       AS [МСП-ГИД-Ребенок-УТ2:АдресФактический-УТ2:Корпус],
     addressLiveChild.[УТ2:Квартира]                                     AS [МСП-ГИД-Ребенок-УТ2:АдресФактический-УТ2:Квартира],
-    CONVERT(VARCHAR, servServ.[МСП-РаспорядительныйДокумент-ДатаУстановления]) AS [МСП-РаспорядительныйДокумент-ДатаУстановления], 
-    CONVERT(VARCHAR, servServ.[МСП-РаспорядительныйДокумент-Период-УТ2:С]) AS [МСП-РаспорядительныйДокумент-Период-УТ2:С],
-    CONVERT(VARCHAR, servServ.[МСП-РаспорядительныйДокумент-Период-УТ2:По])  AS [МСП-РаспорядительныйДокумент-Период-УТ2:По],
-    CONVERT(VARCHAR, servServ.[МСП-РаспорядительныйДокумент-Реквизиты-Дата]) AS [МСП-РаспорядительныйДокумент-Реквизиты-Дата],
+    CONVERT(VARCHAR, servServ.[МСП-РаспорядительныйДокумент-ДатаУстановления])  AS [МСП-РаспорядительныйДокумент-ДатаУстановления], 
+    CONVERT(VARCHAR, servServ.[МСП-РаспорядительныйДокумент-Период-УТ2:С])      AS [МСП-РаспорядительныйДокумент-Период-УТ2:С],
+    CONVERT(VARCHAR, servServ.[МСП-РаспорядительныйДокумент-Период-УТ2:По])     AS [МСП-РаспорядительныйДокумент-Период-УТ2:По],
+    CONVERT(VARCHAR, servServ.[МСП-РаспорядительныйДокумент-Реквизиты-Дата])    AS [МСП-РаспорядительныйДокумент-Реквизиты-Дата],
     servServ.[МСП-РаспорядительныйДокумент-Реквизиты-Номер],
     servServ.[МСП-РаспорядительныйДокумент-РазмерМСП],
     servServ.[МСП-НПА],
@@ -902,11 +915,11 @@ ORDER BY personalCardHolder.[УТ2:СНИЛС], servServ.[Идентификат
 
 SELECT 
     сonfirmationDocument.[Назначение],
-    сonfirmationDocument.[УТ2:Наименование]         AS [МСП-ПравоподтверждающийДокумент-УТ2:Наименование],
-    сonfirmationDocument.[УТ2:Серия]                AS [МСП-ПравоподтверждающийДокумент-УТ2:Серия],
-    сonfirmationDocument.[УТ2:Номер]                AS [МСП-ПравоподтверждающийДокумент-УТ2:Номер],
-    CONVERT(VARCHAR, сonfirmationDocument.[УТ2:ДатаВыдачи])           AS [МСП-ПравоподтверждающийДокумент-УТ2:ДатаВыдачи],
-    сonfirmationDocument.[УТ2:КемВыдан]             AS [МСП-ПравоподтверждающийДокумент-УТ2:КемВыдан],
-    CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:С])     AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:С],
-    CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:По]) AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:По]
+    сonfirmationDocument.[УТ2:Наименование]                             AS [МСП-ПравоподтверждающийДокумент-УТ2:Наименование],
+    сonfirmationDocument.[УТ2:Серия]                                    AS [МСП-ПравоподтверждающийДокумент-УТ2:Серия],
+    сonfirmationDocument.[УТ2:Номер]                                    AS [МСП-ПравоподтверждающийДокумент-УТ2:Номер],
+    CONVERT(VARCHAR, сonfirmationDocument.[УТ2:ДатаВыдачи])             AS [МСП-ПравоподтверждающийДокумент-УТ2:ДатаВыдачи],
+    сonfirmationDocument.[УТ2:КемВыдан]                                 AS [МСП-ПравоподтверждающийДокумент-УТ2:КемВыдан],
+    CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:С])       AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:С],
+    CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:По])      AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:По]
 FROM #ПРАВОПОДТВЕРЖДАЮЩИЕ_ДОКУМЕНТЫ сonfirmationDocument
