@@ -51,6 +51,12 @@ namespace ExportFromDatabaseToXML.Classes
             string patternSection1 = xml.Substring(startSection1, endSection1 - startSection1);
             //Удаление секции 1.
             xml = xml.Remove(startSection1, patternSection1.Length + "#/ResultSection.1#".Length);
+            //Получение секции 3.
+            int startSection3 = xml.IndexOf("#ResultSection.3#") + "#ResultSection.3#".Length;
+            int endSection3 = xml.IndexOf("#/ResultSection.3#");
+            string patternSection3 = xml.Substring(startSection3, endSection3 - startSection3);
+            //Удаление секции 3.
+            xml = xml.Remove(startSection3, patternSection3.Length + "#/ResultSection.3#".Length);
             //Вставка значений в секции 2.
             List<PartXML> sections2 = new List<PartXML>();
             for (int row = 0; row < data[1].Rows.Count; row++) {
@@ -65,7 +71,6 @@ namespace ExportFromDatabaseToXML.Classes
                 });
             }
             //Вставка значений в секции 1.
-            List<PartXML> sections1 = new List<PartXML>();
             for (int row = 0; row < data[0].Rows.Count; row++) {
                 string patternWithData = patternSection1;
                 for (int column = 0; column < data[0].Columns.Count; column++) {
@@ -82,9 +87,20 @@ namespace ExportFromDatabaseToXML.Classes
                 int startInsertSection1 = xml.IndexOf("#ResultSection.1#");
                 xml = xml.Insert(startInsertSection1, patternWithData);
             }
+            //Вставка значений в секции 3.
+            for (int row = 0; row < data[2].Rows.Count; row++) {
+                string patternWithData = patternSection3;
+                for (int column = 0; column < data[2].Columns.Count; column++) {
+                    string columnName = data[2].Columns[column].ColumnName;
+                    patternWithData = patternWithData.Replace($"#{columnName}#", data[2].Rows[row][column].ToString());
+                }
+                int startInsertSection3 = xml.IndexOf("#ResultSection.3#");
+                xml = xml.Insert(startInsertSection3, patternWithData);
+            }
             //Удаление меток.
             xml = xml.Replace("#ResultSection.2#", "");
             xml = xml.Replace("#ResultSection.1#", "");
+            xml = xml.Replace("#ResultSection.3#", "");
             //Удаление пустых тегов и пустых строк.
             RemoverEmptyTagFromXML remover = new RemoverEmptyTagFromXML();
             xml = remover.removeEmptyTagFromXML(xml);

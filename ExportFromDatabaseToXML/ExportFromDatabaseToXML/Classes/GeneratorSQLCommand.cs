@@ -94,7 +94,7 @@ namespace ExportFromDatabaseToXML.Classes
                     break;
                 }
                 if (command[endPosition] == '#') {
-                    singleValue.Add(new Token(command.Substring(startPosition, endPosition - startPosition + 1), ""));
+                    singleValue.Add(new Token(command.Substring(startPosition + 1, endPosition - startPosition - 1), ""));
                 }
                 currentPosition = endPosition + 1;
             }
