@@ -57,6 +57,7 @@ namespace ExportFromDatabaseToXML.Classes
             string patternSection3 = xml.Substring(startSection3, endSection3 - startSection3);
             //Удаление секции 3.
             xml = xml.Remove(startSection3, patternSection3.Length + "#/ResultSection.3#".Length);
+            RemoverEmptyTagFromXML remover = new RemoverEmptyTagFromXML();
             //Вставка значений в секции 2.
             List<PartXML> sections2 = new List<PartXML>();
             for (int row = 0; row < data[1].Rows.Count; row++) {
@@ -65,6 +66,8 @@ namespace ExportFromDatabaseToXML.Classes
                     string columnName = data[1].Columns[column].ColumnName;
                     patternWithData = patternWithData.Replace($"#{columnName}#", data[1].Rows[row][column].ToString());
                 }
+                patternWithData = remover.removeEmptyTagFromXML(patternWithData);
+                patternWithData = deleteEmptyLines(patternWithData);
                 sections2.Add(new PartXML() {
                     data = patternWithData,
                     forLink = data[1].Rows[row][0].ToString()
@@ -77,6 +80,8 @@ namespace ExportFromDatabaseToXML.Classes
                     string columnName = data[0].Columns[column].ColumnName;
                     patternWithData = patternWithData.Replace($"#{columnName}#", data[0].Rows[row][column].ToString());
                 }
+                patternWithData = remover.removeEmptyTagFromXML(patternWithData);
+                patternWithData = deleteEmptyLines(patternWithData);
                 //Вставка из секции 2.
                 for (int k = 0; k < sections2.Count; k++) {
                     if (sections2[k].forLink == data[0].Rows[row][0].ToString()) {
@@ -94,6 +99,8 @@ namespace ExportFromDatabaseToXML.Classes
                     string columnName = data[2].Columns[column].ColumnName;
                     patternWithData = patternWithData.Replace($"#{columnName}#", data[2].Rows[row][column].ToString());
                 }
+                patternWithData = remover.removeEmptyTagFromXML(patternWithData);
+                patternWithData = deleteEmptyLines(patternWithData);
                 int startInsertSection3 = xml.IndexOf("#ResultSection.3#");
                 xml = xml.Insert(startInsertSection3, patternWithData);
             }
@@ -102,9 +109,7 @@ namespace ExportFromDatabaseToXML.Classes
             xml = xml.Replace("#ResultSection.1#", "");
             xml = xml.Replace("#ResultSection.3#", "");
             //Удаление пустых тегов и пустых строк.
-            RemoverEmptyTagFromXML remover = new RemoverEmptyTagFromXML();
-            xml = remover.removeEmptyTagFromXML(xml);
-            return deleteEmptyLines(xml);
+            return xml;
         }
 
         /// <summary>
@@ -125,7 +130,7 @@ namespace ExportFromDatabaseToXML.Classes
                     }
                 }
                 if (!isEmpty) {
-                    result = result + temp + "\r\n";
+                    result = result + temp /*+ "\r\n"*/;
                 }
             }
             return result;

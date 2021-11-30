@@ -81,7 +81,6 @@ SELECT DISTINCT
                         WHEN payment.ALTERNATIVEADDRESSDEIVERY = personalCardHolder.A_TEMPREGFLAT   THEN 2
                         WHEN payment.ALTERNATIVEADDRESSDEIVERY = personalCardHolder.A_LIVEFLAT      THEN 3  
                         WHEN payment.DELIVERYWAY = @deliveryRussianPost                             THEN 1
-                        ELSE NULL
                     END
                 WHEN personalCardHolder.OUID <> personalCardReceiver.OUID THEN 
                     CASE
@@ -92,10 +91,11 @@ SELECT DISTINCT
                     END
                 ELSE NULL
             END
+        WHEN payment.DELIVERYWAY = 3 THEN 1
         ELSE NULL
     END                                 AS [МСП-СпособДоставки-ТипАдреса],
     CASE     
-        WHEN payment.DELIVERYWAY IN (2, 7) THEN ISNULL(bank.A_BIK, parentBank.A_BIK)
+        WHEN payment.DELIVERYWAY IN (2, 7) THEN ISNULL(ISNULL(bank.A_BIK, parentBank.A_BIK), '00000000')
         ELSE NULL
     END                                 AS [МСП-СпособДоставки-БанковскиеРеквизиты-УТ2:БИК],  
     CASE 
@@ -110,7 +110,7 @@ FROM ESRN_SERV_SERV servServ --Назначения МСП.
 ----Нужные меры социальной поддержки.
     INNER JOIN CLASSIFY_MSP_FROM_PFR typeServ
         ON typeServ.MSP_LK_NPD_FROM_PPR = servServ.A_SERV	
-            AND typeServ.CODE_FROM_PFR = '00702'
+            AND typeServ.CODE_FROM_PFR = '00100'
     LEFT JOIN CLASSIFY_NPA_FROM_PFR npa
         ON npa.OUID = typeServ.NPA_FROM_PFR
 ----Период предоставления МСП.
@@ -204,7 +204,6 @@ WHERE servServ.A_STATUS = @actStatus
         OR typeServ.COMMENT IS NULL
     )
 
-
 --------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -260,8 +259,8 @@ FROM #НАЗНАЧЕНИЯ servServ
 ) typeRelationships
     ON typeRelationships.SERV_OUID = servServ.[Идентификатор]
         AND typeRelationships.gnum = 1
-
-
+        
+        
 --------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -287,7 +286,7 @@ SELECT DISTINCT
     REPLACE(REPLACE(typeDoc.A_NAME, '>', 'больше'), '<', 'меньше')                          AS [УТ2:Наименование],
     actDocuments.DOCUMENTSERIES                                                             AS [УТ2:Серия],
     ISNULL(actDocuments.DOCUMENTSNUMBER, 'б/н')                                             AS [УТ2:Номер],
-    CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE)                                         AS [УТ2:ДатаВыдачи],
+    ISNULL(CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE), CONVERT(DATE, '01-01-9999'))    AS [УТ2:ДатаВыдачи],
     CASE
         WHEN ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT) IS NOT NULL THEN ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT)
         WHEN typeDoc.A_ID = 1799 THEN 'Бюро МСЭ по г. Кирову'
@@ -296,7 +295,7 @@ SELECT DISTINCT
         WHEN typeDoc.A_ID = 2841 THEN 'Военный комиссариат Кировской области'
         ELSE '-'
     END                                                                                     AS [УТ2:КемВыдан],
-    CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE)                                         AS [ПериодДействия-УТ2:С],
+    ISNULL(CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE), CONVERT(DATE, '01-01-9999'))    AS [ПериодДействия-УТ2:С],
     ISNULL(CONVERT(DATE, actDocuments.COMPLETIONSACTIONDATE), CONVERT(DATE, '01-01-9999'))  AS [ПериодДействия-УТ2:По]
 FROM #НАЗНАЧЕНИЯ 
 ----Назначения МСП.
@@ -351,11 +350,15 @@ CREATE TABLE #ПЕРСОНАЛЬНАЯ_ИНФОРМАЦИЯ (
 INSERT INTO #ПЕРСОНАЛЬНАЯ_ИНФОРМАЦИЯ ([Идентификатор], [УТ2:СНИЛС], [УТ2:ФИО-УТ2:Фамилия], [УТ2:ФИО-УТ2:Имя], [УТ2:ФИО-УТ2:Отчество], [УТ2:Пол], [УТ2:ДатаРождения],    
     [УТ2:МестоРождения], [УТ2:АдресРегистрации], [УТ2:АдресПребывания], [УТ2:АдресФактический])
 SELECT DISTINCT
-    personalCard.OUID                                               AS [Идентификатор],
-    SUBSTRING(personalCard.A_SNILS, 1, 3) + '-' + 
-        SUBSTRING(personalCard.A_SNILS, 4, 3) + '-' + 
-        SUBSTRING(personalCard.A_SNILS, 7, 3) + ' ' + 
-        SUBSTRING(personalCard.A_SNILS, 10, 2)                      AS [УТ2:СНИЛС],
+    personalCard.OUID   AS [Идентификатор],
+    CASE 
+        WHEN personalCard.A_SNILS IS NOT NULL THEN                                         
+        SUBSTRING(personalCard.A_SNILS, 1, 3) + '-' + 
+            SUBSTRING(personalCard.A_SNILS, 4, 3) + '-' + 
+            SUBSTRING(personalCard.A_SNILS, 7, 3) + ' ' + 
+            SUBSTRING(personalCard.A_SNILS, 10, 2)                      
+        ELSE '000-000-000 00'     
+    END                                                             AS [УТ2:СНИЛС],
     ISNULL(personalCard.A_SURNAME_STR,    fioSurname.A_NAME)        AS [УТ2:ФИО-УТ2:Фамилия],
     ISNULL(personalCard.A_NAME_STR,       fioName.A_NAME)           AS [УТ2:ФИО-УТ2:Имя],
     ISNULL(personalCard.A_SECONDNAME_STR, fioSecondname.A_NAME)     AS [УТ2:ФИО-УТ2:Отчество],
@@ -615,10 +618,10 @@ FROM (
         classifyDoc.CODE_FROM_PFR                                                       AS [УТ2:Тип],
         actDocuments.DOCUMENTSERIES                                                     AS [УТ2:Серия],
         ISNULL(actDocuments.DOCUMENTSNUMBER, 'б/н')                                     AS [УТ2:Номер],
-        CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE)                                 AS [УТ2:ДатаВыдачи],
-        ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT)               AS [УТ2:КемВыдан],
-        CONVERT(DATE, actDocuments.COMPLETIONSACTIONDATE)                               AS [УТ2:СрокДействия],
-        REPLACE(actDocuments.A_UNIT_CODE, '-', '')                                      AS [УТ2:КодПодразделения],
+        ISNULL(CONVERT(DATE, actDocuments.ISSUEEXTENSIONSDATE), CONVERT(DATE, '01-01-9999'))     AS [УТ2:ДатаВыдачи],
+        ISNULL(ISNULL(organization.A_NAME1, actDocuments.A_GIVEDOCUMENTORG_TEXT), '-')      AS [УТ2:КемВыдан],
+        CONVERT(DATE, actDocuments.COMPLETIONSACTIONDATE)                                   AS [УТ2:СрокДействия],
+        REPLACE(actDocuments.A_UNIT_CODE, '-', '')                                          AS [УТ2:КодПодразделения],
         ROW_NUMBER() OVER (PARTITION BY actDocuments.PERSONOUID  ORDER BY classifyDoc.OUID, actDocuments.ISSUEEXTENSIONSDATE DESC) AS gnum 
     FROM WM_ACTDOCUMENTS actDocuments --Действующие документы. 
     ----Выбранные личные дела.
@@ -855,10 +858,7 @@ SELECT
     CONVERT(VARCHAR, identityСardReceiver.[УТ2:СрокДействия])           AS [Представитель-УТ2:УдостоверяющийДокумент-УТ2:СрокДействия],
     identityСardReceiver.[УТ2:КодПодразделения]                         AS [Представитель-УТ2:УдостоверяющийДокумент-УТ2:КодПодразделения],
     servServ.[МСП-ГИД-КодПолучателя],
-    CASE
-        WHEN personalCardChild.[Идентификатор] IS NOT NULL THEN ISNULL(personalCardChild.[УТ2:СНИЛС], '000-000-000 00')
-        ELSE NULL
-    END                                                                 AS [МСП-ГИД-Ребенок-УТ2:СНИЛС],
+    personalCardChild.[УТ2:СНИЛС]                                       AS [МСП-ГИД-Ребенок-УТ2:СНИЛС],
     personalCardChild.[УТ2:ФИО-УТ2:Фамилия]                             AS [МСП-ГИД-Ребенок-УТ2:ФИО-УТ2:Фамилия],
     personalCardChild.[УТ2:ФИО-УТ2:Имя]                                 AS [МСП-ГИД-Ребенок-УТ2:ФИО-УТ2:Имя],
     personalCardChild.[УТ2:ФИО-УТ2:Отчество]                            AS [МСП-ГИД-Ребенок-УТ2:ФИО-УТ2:Отчество],
