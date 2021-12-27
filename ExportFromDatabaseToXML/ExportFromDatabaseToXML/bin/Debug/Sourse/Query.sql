@@ -110,7 +110,7 @@ FROM ESRN_SERV_SERV servServ --Назначения МСП.
 ----Нужные меры социальной поддержки.
     INNER JOIN CLASSIFY_MSP_FROM_PFR typeServ
         ON typeServ.MSP_LK_NPD_FROM_PPR = servServ.A_SERV	
-            AND typeServ.CODE_FROM_PFR = '00100'
+            AND typeServ.CODE_FROM_PFR = '02500'
     LEFT JOIN CLASSIFY_NPA_FROM_PFR npa
         ON npa.OUID = typeServ.NPA_FROM_PFR
 ----Период предоставления МСП.
@@ -203,9 +203,31 @@ WHERE servServ.A_STATUS = @actStatus
         OR SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT) - 1) <> 'TypeDoc'
         OR typeServ.COMMENT IS NULL
     )
+    --AND servServ.OUID = 4343445
+
 
 --------------------------------------------------------------------------------------------------------------------------------
 
+--Удаление уже выгруженных.
+IF OBJECT_ID('tempdb..#УЖЕ_ВЫГРУЖЕННЫЕ') IS NOT NULL BEGIN DROP TABLE #УЖЕ_ВЫГРУЖЕННЫЕ END 
+--Создание таблицы.
+CREATE TABLE #УЖЕ_ВЫГРУЖЕННЫЕ (
+    [Идентификатор] INT
+)
+INSERT INTO #УЖЕ_ВЫГРУЖЕННЫЕ ([Идентификатор])
+SELECT 
+    CONVERT(INT, temp.VARCHAR_14) AS [Идентификатор]
+FROM TEMPORARY_TABLE temp
+WHERE temp.VARCHAR_15 = 'Выгруженные в ПФР 30 ноября'
+    AND temp.VARCHAR_14 IS NOT NULL
+
+DELETE servServ
+FROM #НАЗНАЧЕНИЯ servServ
+WHERE servServ.[Идентификатор] IN (SELECT [Идентификатор] FROM #УЖЕ_ВЫГРУЖЕННЫЕ)
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------
 
 --Установка кода получателя для мер на детей.
 UPDATE servServ
@@ -991,7 +1013,7 @@ SELECT
     CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:С])       AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:С],
     CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:По])      AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:По]
 FROM #ПРАВОПОДТВЕРЖДАЮЩИЕ_ДОКУМЕНТЫ сonfirmationDocument
-
+WHERE [Идентификатор] <> 862795
 
 
 DECLARE @currentDateTime DATETIME = GETDATE()

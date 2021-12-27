@@ -96,13 +96,6 @@ namespace ExportFromDatabaseToXML
                     buttonExecute.BackColor = Color.LightGreen;
                     buttonExecute.Enabled = true;
                 }
-                clearDataGridView(dataGridViewQueryParametrs);
-                GeneratorSQLCommand generator = new GeneratorSQLCommand();
-                List<Token> parametrs = generator.getSingleParametrsFromCommand(_query);
-                for (int i = 0; i < parametrs.Count; i++) {
-                    addRowDataGridView(dataGridViewQueryParametrs);
-                    setCellValueDataGridView(dataGridViewQueryParametrs, dataGridViewQueryParametrs.Rows.Count - 1, "CodeParametr", parametrs[i].Name);
-                }
             }
         }
 
@@ -124,8 +117,6 @@ namespace ExportFromDatabaseToXML
                 if (formLogging.ExecutorQuerySQL.ThereIsConnection) {
                     MessageBox.Show("Успешное подключение.", "Результат подключения", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     _executorQuerySQL = formLogging.ExecutorQuerySQL;
-                    GeneratorSQLCommand generatorSQL = new GeneratorSQLCommand();
-                    string query = generatorSQL.insertDataToCommand(_query, getTokensFromDataGridView(dataGridViewQueryParametrs), new List<DataTable>());
                     List<DataTable> result = _executorQuerySQL.executeComamnd(_query);
                     GeneratorXML generator = new GeneratorXML();
                     string xml = generator.generateXML(_patternXML, result);
