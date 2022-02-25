@@ -60,7 +60,7 @@ SELECT DISTINCT
     END                                 AS [Представитель],
     NULL                                AS [МСП-ГИД-КодПолучателя],
     CASE
-        WHEN typeServ.CODE_FROM_PFR IN ('03300', '03400', '03500', '03600', '03700', '03800') 
+        WHEN typeServ.INCLUDE_CHILD = 1
         THEN personalCardChild.OUID  
         ELSE NULL
     END                                 AS [МСП-ГИД-Ребенок],
@@ -110,7 +110,7 @@ FROM ESRN_SERV_SERV servServ --Назначения МСП.
 ----Нужные меры социальной поддержки.
     INNER JOIN CLASSIFY_MSP_FROM_PFR typeServ
         ON typeServ.MSP_LK_NPD_FROM_PPR = servServ.A_SERV	
-            AND typeServ.CODE_FROM_PFR = '02500'
+           AND typeServ.CODE_FROM_PFR = 'XXXXX'
     LEFT JOIN CLASSIFY_NPA_FROM_PFR npa
         ON npa.OUID = typeServ.NPA_FROM_PFR
 ----Период предоставления МСП.
@@ -119,7 +119,6 @@ FROM ESRN_SERV_SERV servServ --Назначения МСП.
             AND period.A_STATUS = @actStatus 
             AND @currentDate >= CONVERT(DATE, period.STARTDATE)
             AND (@currentDate <= CONVERT(DATE, period.A_LASTDATE) OR period.A_LASTDATE IS NULL)
-            AND (CONVERT(DATE, period.A_LASTDATE) > CONVERT(DATE, '31-12-2021') AND typeServ.CODE_FROM_PFR IN ('03700', '03600') OR typeServ.CODE_FROM_PFR NOT IN ('03700', '03600'))
 ----Назначение к начислению
     INNER JOIN WM_SERVPAYAMOUNT payAmount
         ON payAmount.A_MSP = servServ.OUID
@@ -203,31 +202,33 @@ WHERE servServ.A_STATUS = @actStatus
         OR SUBSTRING(typeServ.COMMENT, 1, CHARINDEX(':', typeServ.COMMENT) - 1) <> 'TypeDoc'
         OR typeServ.COMMENT IS NULL
     )
-    --AND servServ.OUID = 4343445
+    --AND servServ.OUID = 4639093
 
 
 --------------------------------------------------------------------------------------------------------------------------------
 
---Удаление уже выгруженных.
-IF OBJECT_ID('tempdb..#УЖЕ_ВЫГРУЖЕННЫЕ') IS NOT NULL BEGIN DROP TABLE #УЖЕ_ВЫГРУЖЕННЫЕ END 
---Создание таблицы.
-CREATE TABLE #УЖЕ_ВЫГРУЖЕННЫЕ (
-    [Идентификатор] INT
-)
-INSERT INTO #УЖЕ_ВЫГРУЖЕННЫЕ ([Идентификатор])
-SELECT 
-    CONVERT(INT, temp.VARCHAR_14) AS [Идентификатор]
-FROM TEMPORARY_TABLE temp
-WHERE temp.VARCHAR_15 = 'Выгруженные в ПФР 30 ноября'
-    AND temp.VARCHAR_14 IS NOT NULL
+----Удаление уже выгруженных.
+--IF OBJECT_ID('tempdb..#УЖЕ_ВЫГРУЖЕННЫЕ') IS NOT NULL BEGIN DROP TABLE #УЖЕ_ВЫГРУЖЕННЫЕ END 
+----Создание таблицы.
+--CREATE TABLE #УЖЕ_ВЫГРУЖЕННЫЕ (
+--    [Идентификатор] INT
+--)
+--INSERT INTO #УЖЕ_ВЫГРУЖЕННЫЕ ([Идентификатор])
+--SELECT 
+--    CONVERT(INT, temp.VARCHAR_14) AS [Идентификатор]
+--FROM TEMPORARY_TABLE temp
+--WHERE temp.VARCHAR_15 = 'Выгруженные в ПФР 30 ноября'
+--    AND temp.VARCHAR_14 IS NOT NULL
 
-DELETE servServ
-FROM #НАЗНАЧЕНИЯ servServ
-WHERE servServ.[Идентификатор] IN (SELECT [Идентификатор] FROM #УЖЕ_ВЫГРУЖЕННЫЕ)
+--DELETE servServ
+--FROM #НАЗНАЧЕНИЯ servServ
+--WHERE servServ.[Идентификатор] IN (SELECT [Идентификатор] FROM #УЖЕ_ВЫГРУЖЕННЫЕ)
 
 
 
 --------------------------------------------------------------------------------------------------------------------------------
+
+
 
 --Установка кода получателя для мер на детей.
 UPDATE servServ
@@ -275,7 +276,7 @@ FROM #НАЗНАЧЕНИЯ servServ
                     ON adoptionDoc.OUID = petition_document.TOID
                         AND adoptionDoc.A_STATUS = @actStatus
                         AND adoptionDoc.DOCUMENTSTYPE IN (2704)  
-            WHERE servServ.[МСП-КодМСП] IN ('03300', '03400', '03500', '03600', '03700', '03800')                           
+            WHERE servServ.[МСП-ГИД-Ребенок] IS NOT NULL                  
         ) typeRelationships 
         WHERE typeRelationships.TYPE_RELATIONSHIP IS NOT NULL
 ) typeRelationships
@@ -1013,7 +1014,21 @@ SELECT
     CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:С])       AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:С],
     CONVERT(VARCHAR, сonfirmationDocument.[ПериодДействия-УТ2:По])      AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:По]
 FROM #ПРАВОПОДТВЕРЖДАЮЩИЕ_ДОКУМЕНТЫ сonfirmationDocument
-WHERE [Идентификатор] <> 862795
+UNION ALL
+SELECT
+    servServ.[Идентификатор]                        AS [Назначение],
+    '-'                                             AS [МСП-ПравоподтверждающийДокумент-УТ2:Наименование],
+    '-'                                             AS [МСП-ПравоподтверждающийДокумент-УТ2:Серия],
+    '-'                                             AS [МСП-ПравоподтверждающийДокумент-УТ2:Номер],
+    CONVERT(VARCHAR, CONVERT(DATE, '01-01-9999'))   AS [МСП-ПравоподтверждающийДокумент-УТ2:ДатаВыдачи],
+    '-'                                             AS [МСП-ПравоподтверждающийДокумент-УТ2:КемВыдан],
+    CONVERT(VARCHAR, CONVERT(DATE, '01-01-9999'))   AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:С],
+    CONVERT(VARCHAR, CONVERT(DATE, '01-01-9999'))   AS [МСП-ПравоподтверждающийДокумент-ПериодДействия-УТ2:По]
+FROM #НАЗНАЧЕНИЯ servServ
+    LEFT JOIN #ПРАВОПОДТВЕРЖДАЮЩИЕ_ДОКУМЕНТЫ сonfirmationDocument
+        ON servServ.[Идентификатор] = сonfirmationDocument.[Назначение]
+WHERE сonfirmationDocument.[Назначение] IS NULL
+
 
 
 DECLARE @currentDateTime DATETIME = GETDATE()
